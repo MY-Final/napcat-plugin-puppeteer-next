@@ -32,8 +32,8 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
                     </svg>
                 </div>
                 <div>
-                    <h1 className="font-bold text-base leading-tight tracking-tight text-gray-900 dark:text-white">Puppeteer</h1>
-                    <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Service</p>
+                    <h1 className="font-bold text-sm leading-tight tracking-tight text-gray-900 dark:text-white">napcat-plugin-puppeteer-next</h1>
+                    <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Next Generation</p>
                 </div>
             </div>
 
@@ -54,7 +54,7 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
             {/* Footer Links */}
             <div className="px-3 pb-2">
                 <a
-                    href="https://github.com/AQiaoYo/napcat-plugin-puppeteer/issues"
+                    href="https://github.com/MY-Final/napcat-plugin-puppeteer-next/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="sidebar-item no-underline"

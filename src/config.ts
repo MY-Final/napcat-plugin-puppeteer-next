@@ -60,7 +60,7 @@ export function initConfigUI(ctx: NapCatPluginContext) {
                     </div>
                     <div>
                         <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #374151;">Puppeteer 渲染服务</h3>
-                        <p style="margin: 2px 0 0; font-size: 12px; color: #9ca3af;">napcat-plugin-puppeteer</p>
+                        <p style="margin: 2px 0 0; font-size: 12px; color: #9ca3af;">napcat-plugin-puppeteer-next</p>
                     </div>
                 </div>
                 <p style="margin: 0 0 4px; font-size: 13px; color: #6b7280; line-height: 1.5;">提供基于 Chromium 的 HTML/模板截图渲染能力，支持多页签并发与自定义视口配置。</p>
@@ -80,7 +80,7 @@ export function initConfigUI(ctx: NapCatPluginContext) {
                 </div>
                 <div style="font-size: 13px; color: #4b5563;">
                     更多高级配置（浏览器路径、并发数、视口设置等）请前往 
-                    <a href="/plugin/napcat-plugin-puppeteer/page/puppeteer-dashboard" target="_top" style="color: #fb7299; text-decoration: none; font-weight: 600; transition: opacity 0.2s;">WebUI 控制台</a> 
+                    <a href="/plugin/napcat-plugin-puppeteer-next/page/puppeteer-dashboard" target="_top" style="color: #fb7299; text-decoration: none; font-weight: 600; transition: opacity 0.2s;">WebUI 控制台</a> 
                     进行管理。
                 </div>
             </div>

@@ -276,7 +276,7 @@ export default function ApiPage() {
                             </div>
                             <div className="bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-md p-3 font-mono text-sm overflow-x-auto">
                                 <span className="text-gray-400">{'{host}'}</span>
-                                <span className="text-green-600 dark:text-green-500">/plugin/napcat-plugin-puppeteer/api</span>
+                                <span className="text-green-600 dark:text-green-500">/plugin/napcat-plugin-puppeteer-next/api</span>
                                 <span className="text-amber-600 dark:text-amber-500">{'/{endpoint}'}</span>
                             </div>
                         </div>
@@ -288,7 +288,7 @@ export default function ApiPage() {
                             </div>
                             <div className="bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-md p-3 font-mono text-sm overflow-x-auto">
                                 <span className="text-gray-400">{'{host}'}</span>
-                                <span className="text-blue-600 dark:text-blue-500">/api/Plugin/ext/napcat-plugin-puppeteer</span>
+                                <span className="text-blue-600 dark:text-blue-500">/api/Plugin/ext/napcat-plugin-puppeteer-next</span>
                                 <span className="text-amber-600 dark:text-amber-500">{'/{endpoint}'}</span>
                             </div>
                         </div>
@@ -297,7 +297,7 @@ export default function ApiPage() {
                     <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 p-6">
                         <h4 className="font-bold text-base mb-4 text-gray-900 dark:text-white">调用示例</h4>
                         <pre className="text-xs overflow-x-auto font-mono text-gray-600 dark:text-gray-400">{`// 在其他插件中调用（无需认证）
-const response = await fetch('http://localhost:6099/plugin/napcat-plugin-puppeteer/api/render', {
+const response = await fetch('http://localhost:6099/plugin/napcat-plugin-puppeteer-next/api/render', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

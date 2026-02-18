@@ -1,17 +1,18 @@
 {
-  "name": "napcat-plugin-template",
-  "plugin": "插件模板",
+  "name": "napcat-plugin-puppeteer-next",
+  "plugin": "napcat-plugin-puppeteer-next",
   "version": "1.0.0",
   "type": "module",
   "main": "index.mjs",
-  "description": "NapCat 插件开发模板 - 快速开始你的插件开发",
-  "author": "Your Name",
+  "description": "基于 Puppeteer 的 HTML/模板截图渲染服务插件，支持浏览器管理、Chrome 自动安装",
+  "author": "MY-Final",
   "license": "MIT",
   "keywords": [
     "napcat",
     "plugin",
-    "qq",
-    "template"
+    "puppeteer",
+    "screenshot",
+    "render"
   ],
   "napcat": {
     "tags": [

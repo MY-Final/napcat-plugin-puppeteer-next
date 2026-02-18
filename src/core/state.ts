@@ -166,7 +166,7 @@ class PluginState {
         this.networkConfig = ctx.pluginManager?.config || null;
         this.configPath = ctx.configPath || '';
         this.pluginName = ctx.pluginName || '';
-        this.dataPath = ctx.configPath ? path.dirname(ctx.configPath) : path.join(process.cwd(), 'data', 'napcat-plugin-puppeteer');
+        this.dataPath = ctx.configPath ? path.dirname(ctx.configPath) : path.join(process.cwd(), 'data', 'napcat-plugin-puppeteer-next');
         this.startTime = Date.now();
     }
 
