@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, RotateCcw, Square, Shield, CheckCircle, XCircle, Globe, Laptop, Lock, Camera } from 'lucide-react'
+import { Play, RotateCcw, Square, Shield, CheckCircle, XCircle, Globe, Laptop, Lock } from 'lucide-react'
 import type { PluginStatus } from '../types'
 import { authFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
@@ -82,28 +82,6 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
             setTimeout(onRefresh, 1000)
         } catch (e) {
             showToast(`${name}失败: ` + (e as Error).message, 'error')
-        }
-    }
-
-    // 快速截图测试
-    const quickScreenshot = async () => {
-        showToast('正在执行快速截图测试...', 'info')
-        try {
-            const data = await authFetch('/screenshot', {
-                method: 'POST',
-                body: JSON.stringify({
-                    html: '<html><body style="padding:40px;background:#f0f0f0;"><h1>Quick Test</h1><p>This is a quick screenshot test.</p></body></html>',
-                    file_type: 'htmlString',
-                    encoding: 'base64'
-                })
-            })
-            if (data.code === 0) {
-                showToast(`截图成功！耗时 ${data.time}ms`, 'success')
-            } else {
-                showToast('截图失败: ' + data.message, 'error')
-            }
-        } catch (e) {
-            showToast('截图测试失败: ' + (e as Error).message, 'error')
         }
     }
 
@@ -215,27 +193,6 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
                             停止
                         </button>
                     </div>
-                </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="glass-card p-6 mb-8">
-                <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100">快速操作</h3>
-                <div className="flex flex-wrap gap-3">
-                    <button
-                        onClick={quickScreenshot}
-                        className="btn bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30"
-                    >
-                        <Camera size={18} className="mr-1" />
-                        一键截图测试
-                    </button>
-                    <button
-                        onClick={onRefresh}
-                        className="btn bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
-                    >
-                        <RotateCcw size={18} className="mr-1" />
-                        刷新状态
-                    </button>
                 </div>
             </div>
 
