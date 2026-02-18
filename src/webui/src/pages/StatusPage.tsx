@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Play, RotateCcw, Square, Shield, CheckCircle, XCircle, Globe, Laptop, Lock } from 'lucide-react'
+import { Play, RotateCcw, Square, Shield, CheckCircle, XCircle, Globe, Laptop, Lock, Camera } from 'lucide-react'
 import type { PluginStatus } from '../types'
 import { authFetch } from '../utils/api'
 import { showToast } from '../hooks/useToast'
@@ -28,10 +28,22 @@ function formatUptime(uptimeMs: number): string {
     }
 }
 
+// 计算成功率
+function calculateSuccessRate(total: number, failed: number): number {
+    if (total === 0) return 100
+    return Math.round(((total - failed) / total) * 100)
+}
+
+// 获取成功率颜色
+function getSuccessRateColor(rate: number): string {
+    if (rate >= 95) return 'text-green-500'
+    if (rate >= 80) return 'text-amber-500'
+    return 'text-red-500'
+}
+
 export default function StatusPage({ status, onRefresh }: StatusPageProps) {
     const browser = status?.browser
     const [displayUptime, setDisplayUptime] = useState<string>('-')
-    // 记录上次同步时的基准信息
     const [syncInfo, setSyncInfo] = useState<{ baseUptime: number; syncTime: number } | null>(null)
 
     // 当 status.uptime 变化时同步基准值
@@ -73,25 +85,96 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
         }
     }
 
+    // 快速截图测试
+    const quickScreenshot = async () => {
+        showToast('正在执行快速截图测试...', 'info')
+        try {
+            const data = await authFetch('/screenshot', {
+                method: 'POST',
+                body: JSON.stringify({
+                    html: '<html><body style="padding:40px;background:#f0f0f0;"><h1>Quick Test</h1><p>This is a quick screenshot test.</p></body></html>',
+                    file_type: 'htmlString',
+                    encoding: 'base64'
+                })
+            })
+            if (data.code === 0) {
+                showToast(`截图成功！耗时 ${data.time}ms`, 'success')
+            } else {
+                showToast('截图失败: ' + data.message, 'error')
+            }
+        } catch (e) {
+            showToast('截图测试失败: ' + (e as Error).message, 'error')
+        }
+    }
+
+    const totalRenders = browser?.totalRenders || 0
+    const failedRenders = browser?.failedRenders || 0
+    const successRate = calculateSuccessRate(totalRenders, failedRenders)
+    const successRateColor = getSuccessRateColor(successRate)
+
     return (
-        <div>
+        <div className="space-y-6">
+            {/* 实时状态卡片 */}
+            <div className="glass-card p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg text-gray-800 dark:text-gray-100">实时状态</h3>
+                    <div className="flex items-center gap-2">
+                        <span className={`w-3 h-3 rounded-full ${browser?.connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                        <span className={`text-sm font-medium ${browser?.connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {browser?.connected ? '运行中' : '未连接'}
+                        </span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-[#1a1b1d] rounded-lg">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            <Shield size={20} className="text-blue-500" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-500">浏览器状态</div>
+                            <div className={`font-semibold ${browser?.connected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {browser?.connected ? (browser?.mode === 'remote' ? '远程连接' : '本地运行') : '未连接'}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-[#1a1b1d] rounded-lg">
+                        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                            <Globe size={20} className="text-purple-500" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-500">当前页面数</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">{browser?.pageCount || 0} 个</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-[#1a1b1d] rounded-lg">
+                        <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                            <CheckCircle size={20} className="text-amber-500" />
+                        </div>
+                        <div>
+                            <div className="text-sm text-gray-500">运行时长</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">{displayUptime}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="glass-card p-6 border-l-4 border-l-primary/60">
                     <div className="text-gray-500 text-sm mb-2 font-medium">总渲染次数</div>
-                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{browser?.totalRenders || 0}</div>
+                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{totalRenders}</div>
                 </div>
                 <div className="glass-card p-6 border-l-4 border-l-red-500/60">
                     <div className="text-gray-500 text-sm mb-2 font-medium">失败次数</div>
-                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{browser?.failedRenders || 0}</div>
+                    <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{failedRenders}</div>
                 </div>
                 <div className="glass-card p-6 border-l-4 border-l-blue-500/60">
                     <div className="text-gray-500 text-sm mb-2 font-medium">当前页面数</div>
                     <div className="text-3xl font-bold text-gray-800 dark:text-gray-100">{browser?.pageCount || 0}</div>
                 </div>
                 <div className="glass-card p-6 border-l-4 border-l-green-500/60">
-                    <div className="text-gray-500 text-sm mb-2 font-medium">运行时长</div>
-                    <div className="text-xl font-bold text-gray-800 dark:text-gray-100 truncate pt-2">{displayUptime}</div>
+                    <div className="text-gray-500 text-sm mb-2 font-medium">成功率</div>
+                    <div className={`text-3xl font-bold ${successRateColor}`}>{successRate}%</div>
                 </div>
             </div>
 
@@ -135,6 +218,27 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
                 </div>
             </div>
 
+            {/* Quick Actions */}
+            <div className="glass-card p-6 mb-8">
+                <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100">快速操作</h3>
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        onClick={quickScreenshot}
+                        className="btn bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30"
+                    >
+                        <Camera size={18} className="mr-1" />
+                        一键截图测试
+                    </button>
+                    <button
+                        onClick={onRefresh}
+                        className="btn bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
+                    >
+                        <RotateCcw size={18} className="mr-1" />
+                        刷新状态
+                    </button>
+                </div>
+            </div>
+
             {/* System Info */}
             <div className="glass-card p-6">
                 <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-gray-100">系统信息</h3>
@@ -168,7 +272,6 @@ export default function StatusPage({ status, onRefresh }: StatusPageProps) {
                         </span>
                     </div>
 
-                    {/* Proxy Info - Always show */}
                     <div className="flex justify-between p-3 bg-gray-50 dark:bg-[#1a1b1d] rounded-lg border border-gray-100 dark:border-gray-800">
                         <span className="text-gray-500 flex items-center gap-1">
                             <Lock size={12} />

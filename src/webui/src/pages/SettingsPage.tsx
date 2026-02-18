@@ -1,4 +1,4 @@
- import {useState, useEffect, useCallback, useRef} from 'react'
+import {useState, useEffect, useCallback, useRef} from 'react'
 import {
     Globe,
     Image,
@@ -10,13 +10,15 @@ import {
     Monitor,
     Server,
     Trash2,
-    Lock
+    Lock,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react'
 import {authFetch, noAuthFetch} from '../utils/api'
 import {showToast} from '../hooks/useToast'
 import type {PluginConfig, ChromeStatus, ChromeProgress} from '../types'
 
-// 默认浏览器启动参数（与后端 DEFAULT_BROWSER_CONFIG.args 保持一致）
+// 默认浏览器启动参数
 const defaultBrowserArgs = [
     '--window-size=800,600',
     '--disable-gpu',
@@ -92,9 +94,55 @@ function getResetConfig() {
     }
 }
 
+// 可折叠区块组件
+function CollapsibleSection({
+    title,
+    subtitle,
+    icon: Icon,
+    children,
+    defaultExpanded = true,
+    badge
+}: {
+    title: string
+    subtitle?: string
+    icon: React.ElementType
+    children: React.ReactNode
+    defaultExpanded?: boolean
+    badge?: React.ReactNode
+}) {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+
+    return (
+        <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <Icon size={20} className="text-gray-900 dark:text-gray-100"/>
+                    <div className="text-left">
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-base text-gray-900 dark:text-white">{title}</h3>
+                            {badge}
+                        </div>
+                        {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+                    </div>
+                </div>
+                <div className="text-gray-400">
+                    {isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
+                </div>
+            </button>
+            {isExpanded && (
+                <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                    {children}
+                </div>
+            )}
+        </div>
+    )
+}
+
 export default function SettingsPage() {
     const [config, setConfig] = useState(getInitialConfig())
-
     const [status, setStatus] = useState<ChromeStatus | null>(null)
     const [version, setVersion] = useState('')
     const [source, setSource] = useState('NPMMIRROR')
@@ -132,7 +180,6 @@ export default function SettingsPage() {
                     if (!data.data.isInstalling) {
                         stopProgressPolling()
                         setIsInstalling(false)
-                        // 安装完成后刷新 Chrome 状态和配置
                         loadChromeStatus()
                         loadSettings()
                         if (data.data.progress?.status === 'completed') {
@@ -232,23 +279,18 @@ export default function SettingsPage() {
         setConfig(prev => ({...prev, [key]: value}))
     }
 
-    // 监听配置变化，自动保存
     useEffect(() => {
         debounceSave()
     }, [config, debounceSave])
 
     const handleResetClick = async () => {
         if (showResetConfirm) {
-            // 第二次点击，执行重置
             setShowResetConfirm(false)
             showToast('正在恢复默认配置...', 'info')
-
-            // 设置本地状态为默认值
             const newConfig = getResetConfig()
             setConfig(newConfig)
 
             try {
-                // 保存到后端
                 await authFetch('/config', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -272,9 +314,7 @@ export default function SettingsPage() {
                 showToast('恢复默认配置失败: ' + (e as Error).message, 'error')
             }
         } else {
-            // 第一次点击，显示确认状态
             setShowResetConfirm(true)
-            // 3秒后自动取消确认状态
             setTimeout(() => setShowResetConfirm(false), 3000)
         }
     }
@@ -308,7 +348,6 @@ export default function SettingsPage() {
     }
 
     const uninstallChrome = async () => {
-        // 使用非模态确认方式，避免 window.confirm 被 iframe 拦截或样式问题
         if (showUninstallConfirm) {
             setShowUninstallConfirm(false)
             showToast('正在卸载 Chrome...', 'info')
@@ -316,7 +355,6 @@ export default function SettingsPage() {
                 const data = await authFetch('/chrome/uninstall', {method: 'POST'})
                 const success = data.code === 0
                 showToast(data.message || (success ? '卸载成功' : '卸载失败'), success ? 'success' : 'error')
-                // 卸载后刷新状态
                 setTimeout(() => {
                     loadChromeStatus()
                 }, 1000)
@@ -325,7 +363,6 @@ export default function SettingsPage() {
             }
         } else {
             setShowUninstallConfirm(true)
-            // 3秒后自动取消确认状态
             setTimeout(() => setShowUninstallConfirm(false), 3000)
         }
     }
@@ -339,21 +376,19 @@ export default function SettingsPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-24">
-            {/* Browser Settings */}
-            <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <Globe size={20} className="text-gray-900 dark:text-gray-100"/>
-                    <div>
-                        <h3 className="font-bold text-base text-gray-900 dark:text-white">浏览器设置</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">Puppeteer 实例与连接配置</p>
-                    </div>
-                </div>
-
+            {/* Browser Settings - Collapsible */}
+            <CollapsibleSection
+                title="浏览器设置"
+                subtitle="Puppeteer 实例与连接配置"
+                icon={Globe}
+                defaultExpanded={true}
+            >
                 <div className="space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                            <label
-                                className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">最大页面数</label>
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                最大页面数
+                            </label>
                             <input
                                 type="number"
                                 value={config.maxPages}
@@ -363,14 +398,12 @@ export default function SettingsPage() {
                                 min={1}
                                 max={50}
                             />
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                同时打开的页面上限，超过将排队等待
-                            </p>
+                            <p className="text-[10px] text-gray-400 mt-1">同时打开的页面上限，超过将排队等待</p>
                         </div>
                         <div>
-                            <label
-                                className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">超时时间
-                                (ms)</label>
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                超时时间 (ms)
+                            </label>
                             <input
                                 type="number"
                                 value={config.lockTimeout}
@@ -379,15 +412,14 @@ export default function SettingsPage() {
                                 placeholder="30000"
                                 step={1000}
                             />
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                截图任务最大执行时间
-                            </p>
+                            <p className="text-[10px] text-gray-400 mt-1">截图任务最大执行时间</p>
                         </div>
                     </div>
 
                     <div>
-                        <label
-                            className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">本地浏览器路径</label>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                            本地浏览器路径
+                        </label>
                         <input
                             type="text"
                             value={config.executablePath}
@@ -395,15 +427,13 @@ export default function SettingsPage() {
                             className="input-field font-mono text-sm"
                             placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe"
                         />
-                        <p className="text-[10px] text-gray-400 mt-1">
-                            留空则尝试自动查找或使用下载的 Chrome
-                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">留空则尝试自动查找或使用下载的 Chrome</p>
                     </div>
 
                     <div>
-                        <label
-                            className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">远程浏览器地址
-                            (WebSocket)</label>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                            远程浏览器地址 (WebSocket)
+                        </label>
                         <input
                             type="text"
                             value={config.browserWSEndpoint}
@@ -411,14 +441,13 @@ export default function SettingsPage() {
                             className="input-field font-mono text-sm"
                             placeholder="ws://chrome:3000 或 ws://localhost:9222/devtools/browser/..."
                         />
-                        <p className="text-[10px] text-gray-400 mt-1">
-                            连接远程浏览器的 WebSocket 地址。设置后将忽略本地浏览器路径。
-                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">连接远程浏览器的 WebSocket 地址。设置后将忽略本地浏览器路径。</p>
                     </div>
 
                     <div>
-                        <label
-                            className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">启动参数</label>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                            启动参数
+                        </label>
                         <input
                             type="text"
                             value={config.browserArgs}
@@ -429,17 +458,17 @@ export default function SettingsPage() {
                         <p className="text-[10px] text-gray-400 mt-1">浏览器启动参数，多个参数用逗号分隔</p>
                     </div>
 
-                    {/* Proxy Settings */}
+                    {/* Proxy Settings - Subsection */}
                     <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                         <div className="flex items-center gap-2 mb-4">
                             <Lock size={14} className="text-gray-400"/>
-                            <span
-                                className="text-xs font-semibold text-gray-500 uppercase tracking-wider">代理服务器配置</span>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">代理服务器配置</span>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label
-                                    className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">代理服务器地址</label>
+                                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                    代理服务器地址
+                                </label>
                                 <input
                                     type="text"
                                     value={config.proxyServer}
@@ -447,14 +476,13 @@ export default function SettingsPage() {
                                     className="input-field font-mono text-sm"
                                     placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    格式: protocol://host:port，例如 http://127.0.0.1:7890，socks5://127.0.0.1:1080
-                                </p>
+                                <p className="text-[10px] text-gray-400 mt-1">格式: protocol://host:port</p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label
-                                        className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">代理用户名</label>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                        代理用户名
+                                    </label>
                                     <input
                                         type="text"
                                         value={config.proxyUsername}
@@ -464,8 +492,9 @@ export default function SettingsPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label
-                                        className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">代理密码</label>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                        代理密码
+                                    </label>
                                     <input
                                         type="password"
                                         value={config.proxyPassword}
@@ -476,9 +505,9 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                             <div>
-                                <label
-                                    className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">Bypass
-                                    列表</label>
+                                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                    Bypass 列表
+                                </label>
                                 <input
                                     type="text"
                                     value={config.proxyBypassList}
@@ -486,15 +515,12 @@ export default function SettingsPage() {
                                     className="input-field font-mono text-sm"
                                     placeholder="localhost,127.0.0.1,.local"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">
-                                    逗号分隔的域名列表，这些域名不走代理
-                                </p>
+                                <p className="text-[10px] text-gray-400 mt-1">逗号分隔的域名列表，这些域名不走代理</p>
                             </div>
                         </div>
                     </div>
 
-                    <div
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
                         <div>
                             <div className="font-medium text-sm text-gray-900 dark:text-gray-200">无头模式</div>
                             <div className="text-xs text-gray-500">隐藏浏览器窗口运行</div>
@@ -509,23 +535,21 @@ export default function SettingsPage() {
                         </label>
                     </div>
                 </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* Render Defaults */}
-            <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <Image size={20} className="text-gray-900 dark:text-gray-100"/>
-                    <div>
-                        <h3 className="font-bold text-base text-gray-900 dark:text-white">渲染默认值</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">截图渲染的默认参数</p>
-                    </div>
-                </div>
-
+            {/* Render Defaults - Collapsible */}
+            <CollapsibleSection
+                title="渲染默认值"
+                subtitle="截图渲染的默认参数"
+                icon={Image}
+                defaultExpanded={false}
+            >
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label
-                                className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">默认宽度</label>
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                默认宽度
+                            </label>
                             <input
                                 type="number"
                                 value={config.defaultWidth}
@@ -536,8 +560,9 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div>
-                            <label
-                                className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">默认高度</label>
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                默认高度
+                            </label>
                             <input
                                 type="number"
                                 value={config.defaultHeight}
@@ -548,8 +573,9 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div>
-                            <label
-                                className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">设备缩放</label>
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                设备缩放
+                            </label>
                             <input
                                 type="number"
                                 value={config.defaultScale}
@@ -563,21 +589,17 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* Other Settings */}
-            <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <SettingsIcon size={20} className="text-gray-900 dark:text-gray-100"/>
-                    <div>
-                        <h3 className="font-bold text-base text-gray-900 dark:text-white">其他设置</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">调试与高级选项</p>
-                    </div>
-                </div>
-
+            {/* Other Settings - Collapsible */}
+            <CollapsibleSection
+                title="其他设置"
+                subtitle="调试与高级选项"
+                icon={SettingsIcon}
+                defaultExpanded={false}
+            >
                 <div className="space-y-3">
-                    <div
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
                         <div>
                             <div className="font-medium text-sm text-gray-900 dark:text-gray-200">调试模式</div>
                             <div className="text-xs text-gray-500">启用后输出详细日志到控制台</div>
@@ -592,8 +614,7 @@ export default function SettingsPage() {
                         </label>
                     </div>
 
-                    <div
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
                         <div>
                             <div className="font-medium text-sm text-gray-900 dark:text-gray-200">自动启动浏览器</div>
                             <div className="text-xs text-gray-500">插件加载时自动启动浏览器实例</div>
@@ -608,9 +629,7 @@ export default function SettingsPage() {
                         </label>
                     </div>
 
-                    {/* 重置配置 */}
-                    <div
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
                         <div>
                             <div className="font-medium text-sm text-gray-900 dark:text-gray-200">重置配置</div>
                             <div className="text-xs text-gray-500">恢复所有设置为默认值</div>
@@ -621,264 +640,240 @@ export default function SettingsPage() {
                                 ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 animate-pulse'
                                 : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30'
                             }`}
-                            title="恢复所有设置为默认值"
                         >
                             <AlertCircle size={14} className="mr-1.5 inline"/>
                             {showResetConfirm ? '再次点击确认重置' : '重置配置'}
                         </button>
                     </div>
                 </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* Chrome Setup */}
-            <div className="bg-white dark:bg-[#1a1b1d] rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-                <div
-                    className="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <div className="flex items-center gap-3">
-                        <Download size={20} className="text-gray-900 dark:text-gray-100"/>
-                        <div>
-                            <h3 className="font-bold text-base text-gray-900 dark:text-white">环境管理</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                                {status?.platform === 'win32'
-                                    ? (status?.windowsVersion || 'Windows')
-                                    : status?.platform === 'darwin' ? 'macOS' : 'Linux'}
-                                {status?.arch ? ` (${status.arch})` : ''} 环境浏览器管理
-                            </p>
+            {/* Chrome Setup - Collapsible */}
+            <CollapsibleSection
+                title="环境管理"
+                subtitle={`${status?.platform === 'win32'
+                    ? (status?.windowsVersion || 'Windows')
+                    : status?.platform === 'darwin' ? 'macOS' : 'Linux'}
+                    ${status?.arch ? ` (${status.arch})` : ''} 环境浏览器管理`}
+                icon={Download}
+                defaultExpanded={true}
+                badge={status?.installed ? (
+                    <span className="px-2 py-0.5 text-[10px] bg-green-100 text-green-700 rounded-full">已安装</span>
+                ) : null}
+            >
+                <div className="space-y-4">
+                    {/* Uninstall Button */}
+                    {status?.canInstall && (
+                        <div className="flex justify-end">
+                            <button
+                                onClick={uninstallChrome}
+                                className={`btn text-xs px-3 py-1.5 border shadow-none transition-all ${showUninstallConfirm
+                                    ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 animate-pulse'
+                                    : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30'
+                                }`}
+                            >
+                                <Trash2 size={14} className="mr-1.5"/>
+                                {showUninstallConfirm ? '再次点击确认卸载' : '卸载 Chrome'}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Installed Browsers */}
+                    {status?.installedBrowsers && status.installedBrowsers.length > 0 && (
+                        <div className="mb-4">
+                            <label className="text-[10px] font-semibold text-gray-500 uppercase mb-2 block tracking-wider">
+                                <Monitor size={12} className="inline mr-1 mb-0.5"/>
+                                系统已安装的浏览器
+                            </label>
+                            <div className="space-y-2">
+                                {status.installedBrowsers.map((browser, index) => (
+                                    <div
+                                        key={index}
+                                        className="p-3 bg-gray-50 dark:bg-[#202124] rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:border-primary/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm ${
+                                                browser.type === 'chrome' ? 'bg-[#4285F4]' :
+                                                browser.type === 'edge' ? 'bg-[#0078D7]' :
+                                                browser.type === 'brave' ? 'bg-[#FF5500]' :
+                                                'bg-gray-500'
+                                            }`}>
+                                                {browser.type === 'chrome' ? 'C' :
+                                                 browser.type === 'edge' ? 'E' :
+                                                 browser.type === 'brave' ? 'B' : 'Cr'}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-sm capitalize text-gray-900 dark:text-gray-200">
+                                                    {browser.type}
+                                                    {browser.channel !== 'stable' && (
+                                                        <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded font-bold uppercase">
+                                                            {browser.channel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500 font-mono truncate max-w-[300px]" title={browser.executablePath}>
+                                                    {browser.executablePath}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            {browser.version && <div className="text-xs text-gray-500 mb-1">{browser.version}</div>}
+                                            <button
+                                                onClick={() => {
+                                                    updateConfig('executablePath', browser.executablePath)
+                                                    showToast('已选择浏览器路径', 'success')
+                                                }}
+                                                className="text-xs font-medium text-primary hover:text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                使用此浏览器
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Environment Info */}
+                    <div className={`p-3 rounded-md border ${status?.canInstall
+                        ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20'
+                        : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20'}`}>
+                        <div className={`flex gap-2 text-sm ${status?.canInstall
+                            ? 'text-blue-700 dark:text-blue-300'
+                            : 'text-amber-700 dark:text-amber-300'}`}>
+                            <Info size={16} className="flex-shrink-0 mt-0.5"/>
+                            <div>
+                                <p className="font-bold text-xs uppercase tracking-wide mb-1">环境说明</p>
+                                <p className={`text-xs leading-relaxed ${status?.canInstall
+                                    ? 'text-blue-600 dark:text-blue-400'
+                                    : 'text-amber-600 dark:text-amber-400'}`}>
+                                    {status?.canInstall ? (
+                                        <>
+                                            检测到 {status?.platform === 'win32'
+                                                ? (status?.windowsVersion || 'Windows')
+                                                : status?.platform === 'darwin' ? 'macOS' : 'Linux'}
+                                            {status?.linuxDistro ? ` (${status.linuxDistro})` : ''} 环境，
+                                            支持自动下载安装 Chrome for Testing。
+                                        </>
+                                    ) : (
+                                        <span className="whitespace-pre-wrap">{status?.cannotInstallReason || '当前平台不支持自动安装 Chrome。'}</span>
+                                    )}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Remote Browser Recommendation */}
+                    {!status?.canInstall && (
+                        <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-md border border-green-100 dark:border-green-900/20">
+                            <div className="flex gap-3">
+                                <Server size={18} className="text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5"/>
+                                <div>
+                                    <p className="font-bold text-xs uppercase tracking-wide mb-1 text-green-700 dark:text-green-300">推荐：使用远程浏览器</p>
+                                    <p className="text-xs mt-1 text-green-600 dark:text-green-400 leading-relaxed">
+                                        您可以使用 Docker 运行一个独立的 Chrome 容器：
+                                    </p>
+                                    <div className="mt-2 p-2 bg-gray-900 rounded text-xs font-mono text-green-400 overflow-x-auto border border-gray-800">
+                                        docker run -d --name chrome -p 3000:3000 browserless/chrome
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chrome Install Options */}
                     {status?.canInstall && (
-                        <button
-                            onClick={uninstallChrome}
-                            className={`btn text-xs px-3 py-1.5 border shadow-none transition-all ${showUninstallConfirm
-                                ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 animate-pulse'
-                                : 'bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30'
-                            }`}
-                            title="卸载内置 Chrome（如果浏览器损坏可尝试此操作）"
-                        >
-                            <Trash2 size={14} className="mr-1.5"/>
-                            {showUninstallConfirm ? '再次点击确认卸载' : '卸载 Chrome'}
-                        </button>
+                        <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                        Chrome 版本
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={version}
+                                        onChange={(e) => setVersion(e.target.value)}
+                                        className="input-field font-mono text-sm"
+                                        placeholder={status?.defaultVersion || '131.0.6778.204'}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">
+                                        下载源
+                                    </label>
+                                    <select
+                                        value={source}
+                                        onChange={(e) => setSource(e.target.value)}
+                                        className="input-field text-sm"
+                                    >
+                                        <option value="NPMMIRROR">NPM 镜像 CDN (国内推荐)</option>
+                                        <option value="NPMMIRROR_REGISTRY">淘宝源 Registry (备用)</option>
+                                        <option value="GOOGLE">Google 官方源</option>
+                                    </select>
+                                    <div className="text-xs text-gray-400 mt-1">国内用户推荐使用 NPM 镜像源</div>
+                                </div>
+                            </div>
+
+                            {status?.platform === 'linux' && (
+                                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
+                                    <div>
+                                        <div className="font-medium text-sm text-gray-900 dark:text-gray-200">安装系统依赖</div>
+                                        <div className="text-xs text-gray-500">自动安装 Chrome 运行所需的系统库</div>
+                                    </div>
+                                    <label className="toggle-switch scale-90 origin-right">
+                                        <input
+                                            type="checkbox"
+                                            checked={installDeps}
+                                            onChange={(e) => setInstallDeps(e.target.checked)}
+                                        />
+                                        <div className="slider"></div>
+                                    </label>
+                                </div>
+                            )}
+
+                            {(isInstalling || progress) && progress?.status !== 'idle' && (
+                                <div className="p-4 bg-gray-50 dark:bg-black/20 rounded-lg border border-gray-100 dark:border-gray-800">
+                                    <div className="mb-2 flex justify-between text-xs font-medium">
+                                        <span className="text-gray-600 dark:text-gray-400">{progress?.message || '处理中...'}</span>
+                                        <span className="font-mono text-primary">{Math.round(progress?.progress || 0)}%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                        <div
+                                            className={`h-2 rounded-full transition-all duration-300 ${getProgressColor()}`}
+                                            style={{width: `${progress?.progress || 0}%`}}
+                                        ></div>
+                                    </div>
+                                    {progress?.downloadedBytes && progress?.totalBytes && (
+                                        <div className="mt-2 text-xs text-gray-500 font-mono">
+                                            {(progress.downloadedBytes / 1024 / 1024).toFixed(2)} MB / {(progress.totalBytes / 1024 / 1024).toFixed(2)} MB
+                                            {progress.speed && ` | ${progress.speed}`}
+                                            {progress.eta && ` | 剩余 ${progress.eta}`}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                                {status?.installed ? (
+                                    <div className="flex-1 p-3 bg-green-50 dark:bg-green-900/10 rounded-md border border-green-200 dark:border-green-800 text-center text-sm font-medium text-green-700 dark:text-green-300 flex items-center justify-center gap-2">
+                                        <Check size={16}/>
+                                        Chrome 已安装 ({status.version})
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={installChrome}
+                                        disabled={isInstalling}
+                                        className="btn btn-primary flex-1 disabled:opacity-50 text-sm font-medium py-2.5 shadow-sm"
+                                    >
+                                        <Download size={16}/>
+                                        立即安装 Chrome
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
-
-                {/* 已安装的浏览器列表 */}
-                {status?.installedBrowsers && status.installedBrowsers.length > 0 && (
-                    <div className="mb-4">
-                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-2 block tracking-wider">
-                            <Monitor size={12} className="inline mr-1 mb-0.5"/>
-                            系统已安装的浏览器
-                        </label>
-                        <div className="space-y-2">
-                            {status.installedBrowsers.map((browser, index) => (
-                                <div
-                                    key={index}
-                                    className="p-3 bg-gray-50 dark:bg-[#202124] rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:border-primary/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div
-                                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm ${browser.type === 'chrome' ? 'bg-[#4285F4]' :
-                                                browser.type === 'edge' ? 'bg-[#0078D7]' :
-                                                    browser.type === 'brave' ? 'bg-[#FF5500]' :
-                                                        'bg-gray-500'
-                                            }`}>
-                                            {browser.type === 'chrome' ? 'C' :
-                                                browser.type === 'edge' ? 'E' :
-                                                    browser.type === 'brave' ? 'B' : 'Cr'}
-                                        </div>
-                                        <div>
-                                            <div
-                                                className="font-medium text-sm capitalize text-gray-900 dark:text-gray-200">
-                                                {browser.type}
-                                                {browser.channel !== 'stable' && (
-                                                    <span
-                                                        className="ml-2 px-1.5 py-0.5 text-[10px] bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded font-bold uppercase">
-                                                        {browser.channel}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-xs text-gray-500 font-mono truncate max-w-[300px]"
-                                                 title={browser.executablePath}>
-                                                {browser.executablePath}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        {browser.version && (
-                                            <div className="text-xs text-gray-500 mb-1">{browser.version}</div>
-                                        )}
-                                        <button
-                                            onClick={() => {
-                                                updateConfig('executablePath', browser.executablePath)
-                                                showToast('已选择浏览器路径', 'success')
-                                            }}
-                                            className="text-xs font-medium text-primary hover:text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            使用此浏览器
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* 环境提示 */}
-                <div className={`mb-4 p-3 rounded-md border ${status?.canInstall
-                    ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20'
-                    : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20'}`}>
-                    <div className={`flex gap-2 text-sm ${status?.canInstall
-                        ? 'text-blue-700 dark:text-blue-300'
-                        : 'text-amber-700 dark:text-amber-300'}`}>
-                        <Info size={16} className="flex-shrink-0 mt-0.5"/>
-                        <div>
-                            <p className="font-bold text-xs uppercase tracking-wide mb-1">环境说明</p>
-                            <p className={`text-xs leading-relaxed ${status?.canInstall
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : 'text-amber-600 dark:text-amber-400'}`}>
-                                {status?.canInstall ? (
-                                    <>
-                                        检测到 {status?.platform === 'win32'
-                                        ? (status?.windowsVersion ? status.windowsVersion : 'Windows')
-                                        : status?.platform === 'darwin' ? 'macOS' : 'Linux'}
-                                        {status?.linuxDistro ? ` (${status.linuxDistro})` : ''} 环境，
-                                        支持自动下载安装 Chrome for Testing。
-                                        如果您使用远程浏览器或已配置本地 Chrome 路径，无需使用此功能。
-                                    </>
-                                ) : (
-                                    <span className="whitespace-pre-wrap">
-                                        {status?.cannotInstallReason || '当前平台不支持自动安装 Chrome。建议使用远程浏览器连接或手动安装 Chrome/Chromium。'}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 远程浏览器推荐 */}
-                {!status?.canInstall && (
-                    <div
-                        className="mb-4 p-4 bg-green-50 dark:bg-green-900/10 rounded-md border border-green-100 dark:border-green-900/20">
-                        <div className="flex gap-3">
-                            <Server size={18} className="text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5"/>
-                            <div>
-                                <p className="font-bold text-xs uppercase tracking-wide mb-1 text-green-700 dark:text-green-300">推荐：使用远程浏览器</p>
-                                <p className="text-xs mt-1 text-green-600 dark:text-green-400 leading-relaxed">
-                                    您可以使用 Docker 运行一个独立的 Chrome 容器，然后通过 WebSocket 连接：
-                                </p>
-                                <div
-                                    className="mt-2 p-2 bg-gray-900 rounded text-xs font-mono text-green-400 overflow-x-auto border border-gray-800">
-                                    docker run -d --name chrome -p 3000:3000 browserless/chrome
-                                </div>
-                                <p className="text-xs mt-2 text-green-600 dark:text-green-400">
-                                    然后在上方「远程浏览器地址」填入：<code
-                                    className="px-1 py-0.5 bg-green-100 dark:bg-green-900/30 rounded font-bold">ws://localhost:3000</code>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Chrome 安装选项 */}
-                {status?.canInstall && (
-                    <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">Chrome
-                                    版本</label>
-                                <input
-                                    type="text"
-                                    value={version}
-                                    onChange={(e) => setVersion(e.target.value)}
-                                    className="input-field font-mono text-sm"
-                                    placeholder={status?.defaultVersion || '131.0.6778.204'}
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block tracking-wider">下载源</label>
-                                <select
-                                    value={source}
-                                    onChange={(e) => setSource(e.target.value)}
-                                    className="input-field text-sm"
-                                >
-                                    <option value="NPMMIRROR">NPM 镜像 CDN (国内推荐)</option>
-                                    <option value="NPMMIRROR_REGISTRY">淘宝源 Registry (备用)</option>
-                                    <option value="GOOGLE">Google 官方源</option>
-                                </select>
-                                <div className="text-xs text-gray-400 mt-1">国内用户推荐使用 NPM 镜像源，下载速度更快
-                                </div>
-                            </div>
-                        </div>
-
-                        {status?.platform === 'linux' && (
-                            <div
-                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#202124] rounded-md border border-gray-100 dark:border-gray-800">
-                                <div>
-                                    <div className="font-medium text-sm text-gray-900 dark:text-gray-200">安装系统依赖
-                                    </div>
-                                    <div className="text-xs text-gray-500">自动安装 Chrome 运行所需的系统库</div>
-                                </div>
-                                <label className="toggle-switch scale-90 origin-right">
-                                    <input
-                                        type="checkbox"
-                                        checked={installDeps}
-                                        onChange={(e) => setInstallDeps(e.target.checked)}
-                                    />
-                                    <div className="slider"></div>
-                                </label>
-                            </div>
-                        )}
-
-                        {(isInstalling || progress) && progress?.status !== 'idle' && (
-                            <div
-                                className="p-4 bg-gray-50 dark:bg-black/20 rounded-lg border border-gray-100 dark:border-gray-800">
-                                <div className="mb-2 flex justify-between text-xs font-medium">
-                                    <span
-                                        className="text-gray-600 dark:text-gray-400">{progress?.message || '处理中...'}</span>
-                                    <span
-                                        className="font-mono text-primary">{Math.round(progress?.progress || 0)}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                                    <div
-                                        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor()}`}
-                                        style={{width: `${progress?.progress || 0}%`}}
-                                    ></div>
-                                </div>
-                                {progress?.downloadedBytes && progress?.totalBytes && (
-                                    <div className="mt-2 text-xs text-gray-500 font-mono">
-                                        {(progress.downloadedBytes / 1024 / 1024).toFixed(2)} MB
-                                        / {(progress.totalBytes / 1024 / 1024).toFixed(2)} MB
-                                        {progress.speed && ` | ${progress.speed}`}
-                                        {progress.eta && ` | 剩余 ${progress.eta}`}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <div className="flex gap-3 pt-2">
-                            {status?.installed ? (
-                                <div
-                                    className="flex-1 p-3 bg-green-50 dark:bg-green-900/10 rounded-md border border-green-200 dark:border-green-800 text-center text-sm font-medium text-green-700 dark:text-green-300 flex items-center justify-center gap-2">
-                                    <Check size={16}/>
-                                    Chrome 已安装 ({status.version})
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={installChrome}
-                                    disabled={isInstalling}
-                                    className="btn btn-primary flex-1 disabled:opacity-50 text-sm font-medium py-2.5 shadow-sm"
-                                >
-                                    <Download size={16}/>
-                                    立即安装 Chrome
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-
+            </CollapsibleSection>
         </div>
     )
 }
