@@ -21,10 +21,12 @@
     "homepage": ""
   },
   "dependencies": {
-    "napcat-types": "0.0.16"
+    "napcat-types": "0.0.16",
+    "puppeteer-core": "^24.37.3"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.3.1",
+    "@rollup/plugin-replace": "^6.0.3",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.33",
     "napcat-plugin-debug-cli": "^1.2.8",

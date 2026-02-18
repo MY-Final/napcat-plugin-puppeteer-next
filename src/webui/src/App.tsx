@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import ToastContainer from './components/ToastContainer'
 import StatusPage from './pages/StatusPage'
-import ConfigPage from './pages/ConfigPage'
-import GroupsPage from './pages/GroupsPage'
+import TestPage from './pages/TestPage'
+import ApiPage from './pages/ApiPage'
+import SettingsPage from './pages/SettingsPage'
+import ToastContainer from './components/ToastContainer'
 import { useStatus } from './hooks/useStatus'
 import { useTheme } from './hooks/useTheme'
 
-export type PageId = 'status' | 'config' | 'groups'
+export type PageId = 'status' | 'test' | 'api' | 'settings'
 
 const pageConfig: Record<PageId, { title: string; desc: string }> = {
-    status: { title: '仪表盘', desc: '插件运行状态与数据概览' },
-    config: { title: '插件配置', desc: '基础设置与参数配置' },
-    groups: { title: '群管理', desc: '管理群的启用与禁用' }
+    status: { title: '仪表盘', desc: '查看插件和服务概览' },
+    test: { title: '截图调试', desc: '测试 HTML 渲染效果' },
+    api: { title: '接口文档', desc: '开发者调用参考' },
+    settings: { title: '系统设置', desc: '插件配置与环境管理' },
 }
 
 function App() {
@@ -21,8 +23,10 @@ function App() {
     const [isScrolled, setIsScrolled] = useState(false)
     const { status, fetchStatus } = useStatus()
 
+    // 初始化主题
     useTheme()
 
+    // 定时刷新状态
     useEffect(() => {
         fetchStatus()
         const interval = setInterval(fetchStatus, 5000)
@@ -35,20 +39,30 @@ function App() {
 
     const renderPage = () => {
         switch (currentPage) {
-            case 'status': return <StatusPage status={status} onRefresh={fetchStatus} />
-            case 'config': return <ConfigPage />
-            case 'groups': return <GroupsPage />
-            default: return <StatusPage status={status} onRefresh={fetchStatus} />
+            case 'status':
+                return <StatusPage status={status} onRefresh={fetchStatus} />
+            case 'test':
+                return <TestPage />
+            case 'api':
+                return <ApiPage />
+            case 'settings':
+                return <SettingsPage />
+            default:
+                return <StatusPage status={status} onRefresh={fetchStatus} />
         }
     }
 
     return (
-        <div className="flex h-screen overflow-hidden bg-[#f8f9fa] dark:bg-[#18191C] text-gray-800 dark:text-gray-200 transition-colors duration-300">
+        <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-[#18191C] text-gray-800 dark:text-gray-200 transition-colors duration-300">
             <ToastContainer />
+
             <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <main className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+                <main
+                    className="flex-1 overflow-y-auto h-full relative"
+                    onScroll={handleScroll}
+                >
                     <Header
                         title={pageConfig[currentPage].title}
                         description={pageConfig[currentPage].desc}
@@ -56,8 +70,9 @@ function App() {
                         status={status}
                         currentPage={currentPage}
                     />
+
                     <div className="px-4 md:px-8 pb-8">
-                        <div key={currentPage} className="page-enter">
+                        <div className="page-enter">
                             {renderPage()}
                         </div>
                     </div>

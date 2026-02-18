@@ -1,6 +1,7 @@
 import { resolve, dirname } from 'path';
 import { defineConfig } from 'vite';
 import nodeResolve from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
 import { builtinModules } from 'module';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -14,8 +15,9 @@ const nodeModules = [
     ...builtinModules.map((m) => `node:${m}`),
 ].flat();
 
-// 依赖排除（如有外部依赖需排除，在此添加）
-const external: string[] = [];
+// 依赖排除：bufferutil 和 utf-8-validate 是原生模块，需要排除
+// 但 puppeteer-core 和 ws 需要打包进去，这样它们会正确使用内置的 WebSocket
+const external: string[] = ['bufferutil', 'utf-8-validate'];
 
 /**
  * 递归复制目录
@@ -38,9 +40,6 @@ function copyDirRecursive(src: string, dest: string) {
 
 /**
  * 构建后自动复制资源的 Vite 插件
- * - 复制 webui 构建产物到 dist/webui
- * - 生成精简的 package.json（只保留运行时必要字段）
- * - 复制 templates 目录（如果存在）
  */
 function copyAssetsPlugin() {
     return {
@@ -52,7 +51,6 @@ function copyAssetsPlugin() {
                 // 1. 构建 WebUI 前端
                 const webuiRoot = resolve(__dirname, 'src/webui');
                 try {
-                    // 先确保 webui 子项目的依赖已安装
                     if (!fs.existsSync(resolve(webuiRoot, 'node_modules'))) {
                         console.log('[copy-assets] (o\'v\'o) 正在安装 WebUI 依赖...');
                         execSync('pnpm install', {
@@ -81,11 +79,9 @@ function copyAssetsPlugin() {
                 if (fs.existsSync(webuiDist)) {
                     copyDirRecursive(webuiDist, webuiDest);
                     console.log('[copy-assets] (o\'v\'o) 已复制 webui 构建产物');
-                } else {
-                    console.error('[copy-assets] (;_;) webui 构建产物不存在，请先运行 pnpm run build:webui');
                 }
 
-                // 3. 生成精简的 package.json（只保留运行时必要字段）
+                // 3. 生成精简的 package.json
                 const pkgPath = resolve(__dirname, 'package.json');
                 if (fs.existsSync(pkgPath)) {
                     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
@@ -144,11 +140,29 @@ export default defineConfig({
             },
         },
         outDir: 'dist',
-    },
-    plugins: [nodeResolve(), copyAssetsPlugin(), napcatHmrPlugin({
-        webui: {
-            distDir: './src/webui/dist',
-            targetDir: 'webui',
+        // 处理 CommonJS 模块
+        commonjsOptions: {
+            include: [/node_modules/],
+            transformMixedEsModules: true,
+            defaultIsModuleExports: true,
         },
-    })],
+    },
+    plugins: [
+        replace({
+            preventAssignment: true,
+            values: {
+                // 禁用 ws 的原生模块加载
+                'process.env.WS_NO_BUFFER_UTIL': '"true"',
+                'process.env.WS_NO_UTF_8_VALIDATE': '"true"',
+            }
+        }),
+        nodeResolve(),
+        copyAssetsPlugin(),
+        napcatHmrPlugin({
+            webui: {
+                distDir: './src/webui/dist',
+                targetDir: 'webui',
+            },
+        }),
+    ],
 });
